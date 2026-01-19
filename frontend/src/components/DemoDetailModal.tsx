@@ -32,6 +32,8 @@ interface TokenField {
   key: string;
   label: string;
   placeholder: string;
+  helpUrl?: string;
+  helpText?: string;
 }
 
 // All demos require GITHUB_TOKEN for Copilot SDK API access
@@ -60,8 +62,10 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
     },
     {
       key: "JIRA_API_TOKEN",
-      label: "API Token",
+      label: "Jira API Token",
       placeholder: "your-api-token",
+      helpUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
+      helpText: "Create Atlassian API token",
     },
   ],
   pagerduty: [
@@ -70,6 +74,9 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
       key: "PAGERDUTY_API_KEY",
       label: "PagerDuty API Key",
       placeholder: "your-api-key",
+      helpUrl:
+        "https://support.pagerduty.com/main/docs/api-access-keys#generate-a-user-token-rest-api-key",
+      helpText: "Generate PagerDuty API key",
     },
   ],
   datadog: [
@@ -78,11 +85,16 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
       key: "DATADOG_API_KEY",
       label: "Datadog API Key",
       placeholder: "your-api-key",
+      helpUrl: "https://app.datadoghq.com/organization-settings/api-keys",
+      helpText: "Create Datadog API key",
     },
     {
       key: "DATADOG_APP_KEY",
       label: "Datadog App Key",
       placeholder: "your-app-key",
+      helpUrl:
+        "https://app.datadoghq.com/organization-settings/application-keys",
+      helpText: "Create Datadog App key",
     },
   ],
   snyk: [
@@ -91,6 +103,8 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
       key: "SNYK_TOKEN",
       label: "Snyk API Token",
       placeholder: "your-snyk-token",
+      helpUrl: "https://app.snyk.io/account",
+      helpText: "Get Snyk API token",
     },
   ],
   slack: [GITHUB_TOKEN_FIELD],
@@ -100,6 +114,9 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
       key: "TEAMS_TENANT_ID",
       label: "Azure Tenant ID",
       placeholder: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      helpUrl:
+        "https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/RegisteredApps",
+      helpText: "Register Azure AD app",
     },
     {
       key: "TEAMS_CLIENT_ID",
@@ -853,9 +870,22 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                         <div className="modal-tokens-fields">
                           {tokenFields.map((field) => (
                             <div key={field.key} className="modal-token-field">
-                              <label className="modal-token-label">
-                                {field.label}
-                              </label>
+                              <div className="modal-token-label-row">
+                                <label className="modal-token-label">
+                                  {field.label}
+                                </label>
+                                {field.helpUrl && (
+                                  <a
+                                    href={field.helpUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="modal-token-help-link"
+                                  >
+                                    <span>{field.helpText || "Get token"}</span>
+                                    <ExternalLink size={10} />
+                                  </a>
+                                )}
+                              </div>
                               <div className="modal-token-input-wrapper">
                                 <input
                                   type={
