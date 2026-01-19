@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { Request, Response, NextFunction, Application } from "express";
 import cors from "cors";
 import { spawn } from "child_process";
 import path from "path";
@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "..");
 
-const app = express();
+const app: Application = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors());
