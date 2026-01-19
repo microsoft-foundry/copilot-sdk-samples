@@ -15,6 +15,9 @@ import {
   ExternalLink,
   Link,
   Code2,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
 } from "lucide-react";
 import mermaid from "mermaid";
 import type { Demo } from "../types";
@@ -480,12 +483,16 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
   const [tokens, setTokens] = useState<Record<string, string>>({});
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
   const [serverAvailable, setServerAvailable] = useState<boolean | null>(null);
+  const [credentialsCollapsed, setCredentialsCollapsed] = useState(false);
   const mermaidRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const tokenFields = TOKEN_FIELDS[demo.id] || [];
   const hasBothTypes = demo.features.sdk && demo.features.ghaw;
+  const hasAllRequiredTokens = tokenFields.every(
+    (f) => tokens[f.key]?.length > 0,
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -668,6 +675,7 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
       setShowTokens({});
       setDemoType("sdk");
       setCommand("");
+      setCredentialsCollapsed(false);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -855,88 +863,137 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                   <AnimatePresence>
                     {mode === "live" && hasTokenFields && (
                       <motion.div
-                        className="modal-tokens"
+                        className={`modal-tokens ${credentialsCollapsed ? "collapsed" : ""}`}
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
                         transition={{ duration: 0.2 }}
                       >
-                        <div className="modal-tokens-header">
-                          <Key size={14} />
-                          <span>API Credentials</span>
-                        </div>
-
-                        <div className="modal-tokens-github-help">
-                          <div className="modal-tokens-github-help-text">
-                            <Github size={14} />
-                            <span>GitHub PAT required for Copilot SDK</span>
+                        <button
+                          className="modal-tokens-header"
+                          onClick={() =>
+                            hasAllRequiredTokens &&
+                            setCredentialsCollapsed(!credentialsCollapsed)
+                          }
+                          type="button"
+                        >
+                          <div className="modal-tokens-header-left">
+                            <Key size={14} />
+                            <span>API Credentials</span>
+                            {hasAllRequiredTokens && (
+                              <span className="modal-tokens-configured">
+                                <CheckCircle2 size={12} />
+                                Configured
+                              </span>
+                            )}
                           </div>
-                          <a
-                            href="https://github.com/settings/tokens/new?scopes=copilot&description=Copilot%20SDK%20Samples"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="modal-tokens-github-link"
-                          >
-                            <span>Create token on GitHub</span>
-                            <ExternalLink size={12} />
-                          </a>
-                          <p className="modal-tokens-github-scopes">
-                            Required scope: <code>copilot</code>
-                          </p>
-                        </div>
+                          {hasAllRequiredTokens && (
+                            <span className="modal-tokens-chevron">
+                              {credentialsCollapsed ? (
+                                <ChevronDown size={16} />
+                              ) : (
+                                <ChevronUp size={16} />
+                              )}
+                            </span>
+                          )}
+                        </button>
 
-                        <div className="modal-tokens-fields">
-                          {tokenFields.map((field) => (
-                            <div key={field.key} className="modal-token-field">
-                              <div className="modal-token-label-row">
-                                <label className="modal-token-label">
-                                  {field.label}
-                                </label>
-                                {field.helpUrl && (
-                                  <a
-                                    href={field.helpUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="modal-token-help-link"
-                                  >
-                                    <span>{field.helpText || "Get token"}</span>
-                                    <ExternalLink size={10} />
-                                  </a>
-                                )}
-                              </div>
-                              <div className="modal-token-input-wrapper">
-                                <input
-                                  type={
-                                    showTokens[field.key] ? "text" : "password"
-                                  }
-                                  className="modal-token-input"
-                                  placeholder={field.placeholder}
-                                  value={tokens[field.key] || ""}
-                                  onChange={(e) =>
-                                    handleTokenChange(field.key, e.target.value)
-                                  }
-                                  autoComplete="off"
-                                />
-                                <button
-                                  className="modal-token-toggle"
-                                  onClick={() =>
-                                    toggleTokenVisibility(field.key)
-                                  }
-                                  type="button"
+                        <AnimatePresence>
+                          {!credentialsCollapsed && (
+                            <motion.div
+                              className="modal-tokens-content"
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.15 }}
+                            >
+                              <div className="modal-tokens-github-help">
+                                <div className="modal-tokens-github-help-text">
+                                  <Github size={14} />
+                                  <span>
+                                    GitHub PAT required for Copilot SDK
+                                  </span>
+                                </div>
+                                <a
+                                  href="https://github.com/settings/tokens/new?scopes=copilot&description=Copilot%20SDK%20Samples"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="modal-tokens-github-link"
                                 >
-                                  {showTokens[field.key] ? (
-                                    <EyeOff size={14} />
-                                  ) : (
-                                    <Eye size={14} />
-                                  )}
-                                </button>
+                                  <span>Create token on GitHub</span>
+                                  <ExternalLink size={12} />
+                                </a>
+                                <p className="modal-tokens-github-scopes">
+                                  Required scope: <code>copilot</code>
+                                </p>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="modal-tokens-note">
-                          Tokens are stored in memory only and never persisted.
-                        </p>
+
+                              <div className="modal-tokens-fields">
+                                {tokenFields.map((field) => (
+                                  <div
+                                    key={field.key}
+                                    className="modal-token-field"
+                                  >
+                                    <div className="modal-token-label-row">
+                                      <label className="modal-token-label">
+                                        {field.label}
+                                      </label>
+                                      {field.helpUrl && (
+                                        <a
+                                          href={field.helpUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="modal-token-help-link"
+                                        >
+                                          <span>
+                                            {field.helpText || "Get token"}
+                                          </span>
+                                          <ExternalLink size={10} />
+                                        </a>
+                                      )}
+                                    </div>
+                                    <div className="modal-token-input-wrapper">
+                                      <input
+                                        type={
+                                          showTokens[field.key]
+                                            ? "text"
+                                            : "password"
+                                        }
+                                        className="modal-token-input"
+                                        placeholder={field.placeholder}
+                                        value={tokens[field.key] || ""}
+                                        onChange={(e) =>
+                                          handleTokenChange(
+                                            field.key,
+                                            e.target.value,
+                                          )
+                                        }
+                                        autoComplete="off"
+                                      />
+                                      <button
+                                        className="modal-token-toggle"
+                                        onClick={() =>
+                                          toggleTokenVisibility(field.key)
+                                        }
+                                        type="button"
+                                      >
+                                        {showTokens[field.key] ? (
+                                          <EyeOff size={14} />
+                                        ) : (
+                                          <Eye size={14} />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              <p className="modal-tokens-note">
+                                Tokens are stored in memory only and never
+                                persisted.
+                              </p>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -960,46 +1017,56 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                     </div>
                   )}
 
-                  <div className="modal-command">
-                    <input
-                      type="text"
-                      className="modal-command-input"
-                      value={command}
-                      onChange={(e) => setCommand(e.target.value)}
-                      spellCheck={false}
-                    />
-                    <div className="modal-command-actions">
-                      <button
-                        className={`modal-command-copy ${copied ? "copied" : ""}`}
-                        onClick={handleCopyCommand}
-                      >
-                        {copied ? (
-                          <>
-                            <CheckCircle2 size={14} />
-                            Copied
-                          </>
+                  <div className="modal-command-section">
+                    <div className="modal-command-label">
+                      <Terminal size={14} />
+                      <span>Command</span>
+                      <span className="modal-command-editable-hint">
+                        <Pencil size={10} />
+                        editable
+                      </span>
+                    </div>
+                    <div className="modal-command">
+                      <textarea
+                        className="modal-command-input"
+                        value={command}
+                        onChange={(e) => setCommand(e.target.value)}
+                        spellCheck={false}
+                        rows={1}
+                      />
+                      <div className="modal-command-actions">
+                        <button
+                          className={`modal-command-copy ${copied ? "copied" : ""}`}
+                          onClick={handleCopyCommand}
+                        >
+                          {copied ? (
+                            <>
+                              <CheckCircle2 size={14} />
+                              Copied
+                            </>
+                          ) : (
+                            "Copy"
+                          )}
+                        </button>
+                        {isRunning ? (
+                          <button
+                            className="modal-stop-button"
+                            onClick={handleStopDemo}
+                          >
+                            <X size={14} />
+                            Stop
+                          </button>
                         ) : (
-                          "Copy"
+                          <button
+                            className={`modal-run-button ${isRunning ? "running" : ""}`}
+                            onClick={handleRunDemo}
+                            disabled={isRunning}
+                          >
+                            <Play size={14} />
+                            Run {mode === "live" ? "Live" : "Demo"}
+                          </button>
                         )}
-                      </button>
-                      {isRunning ? (
-                        <button
-                          className="modal-stop-button"
-                          onClick={handleStopDemo}
-                        >
-                          <X size={14} />
-                          Stop
-                        </button>
-                      ) : (
-                        <button
-                          className={`modal-run-button ${isRunning ? "running" : ""}`}
-                          onClick={handleRunDemo}
-                          disabled={isRunning}
-                        >
-                          <Play size={14} />
-                          Run {mode === "live" ? "Live" : "Demo"}
-                        </button>
-                      )}
+                      </div>
                     </div>
                   </div>
 
