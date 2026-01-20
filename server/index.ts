@@ -3,6 +3,7 @@ import cors from "cors";
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createGitHubActionsConnector } from "../shared/connectors/github-actions/client.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = path.resolve(__dirname, "..");
@@ -99,6 +100,13 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
       TEAMS_CLIENT_SECRET: "optional",
     },
   },
+  "skill-testing": {
+    id: "skill-testing",
+    name: "Skill Testing",
+    description: "Test AI skills against acceptance criteria",
+    command: "npx tsx samples/skill-testing/sdk/index.ts",
+    envVars: { GITHUB_TOKEN: "required" },
+  },
 };
 
 app.get("/api/demos", (_req: Request, res: Response) => {
@@ -132,6 +140,9 @@ app.get("/api/demos/:id", (req: Request<{ id: string }>, res: Response) => {
 interface RunDemoBody {
   tokens?: Record<string, string>;
   mode?: "mock" | "live";
+  command?: string;
+  demoType?: "sdk" | "ghaw";
+  params?: Record<string, string>;
 }
 
 app.post(
@@ -143,7 +154,22 @@ app.post(
       return;
     }
 
-    const { tokens = {}, mode = "mock" } = req.body;
+    const {
+      tokens = {},
+      mode = "mock",
+      command,
+      demoType = "sdk",
+      params = {},
+    } = req.body;
+
+    let execCommand: string;
+    if (command) {
+      execCommand = command;
+    } else if (demoType === "ghaw") {
+      execCommand = `gh copilot aw run .github/aw/samples/${demo.id}.md`;
+    } else {
+      execCommand = demo.command;
+    }
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -162,10 +188,16 @@ app.post(
       });
     }
 
-    console.log(`[DEBUG] Spawning: ${demo.command}`);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) env[`SAMPLE_${key.toUpperCase()}`] = value;
+      });
+    }
+
+    console.log(`[DEBUG] Spawning: ${execCommand}`);
     console.log(`[DEBUG] CWD: ${ROOT_DIR}`);
 
-    const child = spawn(demo.command, [], {
+    const child = spawn(execCommand, [], {
       cwd: ROOT_DIR,
       env,
       shell: true,
@@ -220,6 +252,155 @@ app.post(
         child.kill();
       }
     });
+  },
+);
+
+interface RLMExecuteBody {
+  token: string;
+  owner: string;
+  repo: string;
+  query: string;
+  workflowId?: string;
+  ref?: string;
+}
+
+app.post(
+  "/api/rlm/execute",
+  async (req: Request<unknown, unknown, RLMExecuteBody>, res: Response) => {
+    const {
+      token,
+      owner,
+      repo,
+      query,
+      workflowId = "rlm-repl.yml",
+      ref = "main",
+    } = req.body;
+
+    if (!token || !owner || !repo || !query) {
+      res.status(400).json({
+        error: "Missing required fields: token, owner, repo, query",
+      });
+      return;
+    }
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const sendEvent = (type: string, data: unknown) => {
+      res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    try {
+      const connector = createGitHubActionsConnector({
+        mode: "live",
+        token,
+        owner,
+        repo,
+      });
+
+      const initResult = await connector.initialize();
+      if (!initResult.success) {
+        sendEvent("error", {
+          message:
+            initResult.error?.message ?? "Failed to initialize connector",
+        });
+        res.end();
+        return;
+      }
+
+      sendEvent("status", {
+        phase: "dispatching",
+        message: "Dispatching workflow...",
+      });
+
+      const dispatchResult = await connector.dispatchWorkflow({
+        workflowId,
+        ref,
+        inputs: { query },
+      });
+
+      if (!dispatchResult.success) {
+        sendEvent("error", {
+          message:
+            dispatchResult.error?.message ?? "Failed to dispatch workflow",
+        });
+        res.end();
+        return;
+      }
+
+      const runId = dispatchResult.data!.runId;
+      sendEvent("status", {
+        phase: "queued",
+        message: `Workflow queued (run ID: ${runId})`,
+        runId,
+      });
+
+      const pollInterval = 3000;
+      const timeout = 300000;
+      const startTime = Date.now();
+
+      while (true) {
+        if (Date.now() - startTime > timeout) {
+          sendEvent("error", { message: "Workflow execution timed out" });
+          break;
+        }
+
+        const runResult = await connector.getWorkflowRun(runId);
+        if (!runResult.success) {
+          sendEvent("error", {
+            message:
+              runResult.error?.message ?? "Failed to get workflow status",
+          });
+          break;
+        }
+
+        const run = runResult.data!;
+        sendEvent("status", {
+          phase: run.status,
+          message: `Workflow ${run.status}`,
+          runId,
+          conclusion: run.conclusion,
+          htmlUrl: run.htmlUrl,
+        });
+
+        if (run.status === "completed") {
+          const artifactsResult = await connector.listArtifacts(runId);
+          if (artifactsResult.success && artifactsResult.data!.length > 0) {
+            const outputArtifact = artifactsResult.data!.find(
+              (a) => a.name === "rlm-output",
+            );
+            if (outputArtifact) {
+              const downloadResult = await connector.downloadArtifact(
+                outputArtifact.id,
+              );
+              if (downloadResult.success) {
+                sendEvent("result", { output: downloadResult.data });
+              }
+            }
+          }
+
+          sendEvent("complete", {
+            runId,
+            conclusion: run.conclusion,
+            htmlUrl: run.htmlUrl,
+          });
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      }
+
+      await connector.dispose();
+    } catch (err) {
+      sendEvent("error", {
+        message: err instanceof Error ? err.message : "Unknown error occurred",
+      });
+    }
+
+    res.end();
   },
 );
 

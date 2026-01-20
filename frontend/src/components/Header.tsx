@@ -61,17 +61,11 @@ const Header: React.FC<HeaderProps> = ({
 
       <nav className="header-nav">
         <button
-          className={`header-nav-tab ${activeView === "all" ? "active" : ""}`}
+          className={`header-nav-tab header-nav-tab-sdk ${activeView === "all" || activeView === "sdk" ? "active" : ""}`}
           onClick={() => onViewChange("all")}
         >
-          <span className="header-nav-tab-label">All Samples</span>
-        </button>
-        <button
-          className={`header-nav-tab header-nav-tab-sdk ${activeView === "sdk" ? "active" : ""}`}
-          onClick={() => onViewChange("sdk")}
-        >
           <Code2 size={16} />
-          <span className="header-nav-tab-label">SDK</span>
+          <span className="header-nav-tab-label">Copilot SDK</span>
           <span className="header-nav-tab-count">{sdkCount}</span>
         </button>
         <button
@@ -85,7 +79,7 @@ const Header: React.FC<HeaderProps> = ({
       </nav>
 
       <a
-        href="https://github.com/github/copilot-sdk-samples"
+        href="https://github.com/microsoft-foundry/copilot-sdk-samples"
         target="_blank"
         rel="noopener noreferrer"
         className="header-github-link"

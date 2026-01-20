@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   createMockResult,
   createMockError,
@@ -106,6 +106,12 @@ describe("test/helpers", () => {
 
       expect(elapsed).toBeGreaterThanOrEqual(9);
     });
+
+    it("should be callable as a vitest mock function", () => {
+      const timedMock = createTimedMock("value", 5);
+
+      expect(vi.isMockFunction(timedMock)).toBe(true);
+    });
   });
 
   describe("withTimeout", () => {
@@ -132,6 +138,14 @@ describe("test/helpers", () => {
       const result = await withTimeout(promise);
 
       expect(result).toBe("fast");
+    });
+
+    it("should preserve the result type", async () => {
+      const typedPromise = Promise.resolve({ value: 42 });
+
+      const result = await withTimeout(typedPromise, 1000);
+
+      expect(result.value).toBe(42);
     });
   });
 
