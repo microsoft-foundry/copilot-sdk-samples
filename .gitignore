@@ -28,6 +28,7 @@ Thumbs.db
 
 # Tool-specific
 .opencode/
+.claude/
 
 # Lock files (pnpm uses pnpm-lock.yaml which should be committed)
 *.lock.yml
