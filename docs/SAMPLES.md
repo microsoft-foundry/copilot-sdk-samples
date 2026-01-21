@@ -36,3 +36,5 @@ samples/<name>/
 - Place tests in `test/samples/<name>/`
 - Use `expectSuccess()` and `expectFailure()` helpers
 - Mock connectors are available for all samples
+- Follow TDD workflow: write tests first, then implement
+- See [TESTING.md](./TESTING.md) for complete testing guide and templates

@@ -12,6 +12,12 @@ export default defineConfig({
       reporter: ["text", "json", "html"],
       include: ["shared/**/*.ts", "samples/**/*.ts"],
       exclude: ["**/node_modules/**", "**/dist/**"],
+      thresholds: {
+        statements: 55,
+        branches: 50,
+        functions: 60,
+        lines: 55,
+      },
     },
     testTimeout: 10000,
     hookTimeout: 10000,

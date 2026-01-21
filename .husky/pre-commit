@@ -1,1 +1,12 @@
 pnpm exec lint-staged
+
+# Run tests for changed files
+echo "Running tests for changed files..."
+git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' | grep -v '\.test\.ts$' | while read file; do
+  # Find corresponding test file
+  testFile=$(echo "$file" | sed 's|^samples/|test/samples/|; s|^shared/|test/shared/|; s|\.ts$|.test.ts|')
+  if [ -f "$testFile" ]; then
+    echo "Testing: $testFile"
+    pnpm vitest run "$testFile" --reporter=dot || exit 1
+  fi
+done

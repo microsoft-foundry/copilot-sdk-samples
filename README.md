@@ -56,9 +56,27 @@ All connectors support **mock mode** (default) — no credentials needed for dev
 
 ## Development
 
+### Testing (TDD)
+
+We follow **test-driven development** practices. Before making changes:
+
 ```bash
-pnpm test          # Run tests
-pnpm test:watch    # TDD mode
+pnpm test          # Run tests once
+pnpm test:watch    # TDD mode - watch and re-run tests
+pnpm test:coverage # Generate coverage report
+pnpm test:ui       # Visual test runner
+```
+
+**TDD Workflow:**
+
+1. Write a failing test first
+2. Implement the minimum code to pass the test
+3. Refactor while keeping tests green
+4. See [docs/TESTING.md](docs/TESTING.md) for complete guide
+
+### Other Commands
+
+```bash
 pnpm typecheck     # Type check
 pnpm lint          # Lint
 pnpm build         # Build
@@ -81,6 +99,7 @@ docs/              # Extended documentation
 
 ## Documentation
 
+- [Testing Guide](docs/TESTING.md) - **TDD workflow and testing best practices**
 - [Adding Samples](docs/SAMPLES.md)
 - [Connector Guide](docs/CONNECTORS.md)
 - [TypeScript Patterns](docs/TYPESCRIPT.md)
