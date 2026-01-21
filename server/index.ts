@@ -166,7 +166,7 @@ app.post(
     if (command) {
       execCommand = command;
     } else if (demoType === "ghaw") {
-      execCommand = `gh copilot aw run .github/aw/samples/${demo.id}.md`;
+      execCommand = `gh aw run .github/aw/samples/${demo.id}.md`;
     } else {
       execCommand = demo.command;
     }
