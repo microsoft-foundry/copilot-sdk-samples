@@ -2,11 +2,23 @@ pnpm exec lint-staged
 
 # Run tests for changed files
 echo "Running tests for changed files..."
-git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' | grep -v '\.test\.ts$' | while read file; do
-  # Find corresponding test file
-  testFile=$(echo "$file" | sed 's|^samples/|test/samples/|; s|^shared/|test/shared/|; s|\.ts$|.test.ts|')
-  if [ -f "$testFile" ]; then
-    echo "Testing: $testFile"
-    pnpm vitest run "$testFile" --reporter=dot || exit 1
+changed_files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(ts|tsx)$' | grep -v '\.test\.ts$' || true)
+
+if [ -n "$changed_files" ]; then
+  test_failed=0
+  for file in $changed_files; do
+    # Find corresponding test file
+    testFile=$(echo "$file" | sed 's|^samples/|test/samples/|; s|^shared/|test/shared/|; s|\.ts$|.test.ts|')
+    if [ -f "$testFile" ]; then
+      echo "Testing: $testFile"
+      if ! pnpm vitest run "$testFile" --reporter=dot; then
+        test_failed=1
+      fi
+    fi
+  done
+  
+  if [ $test_failed -eq 1 ]; then
+    echo "Tests failed. Please fix the failing tests before committing."
+    exit 1
   fi
-done
+fi

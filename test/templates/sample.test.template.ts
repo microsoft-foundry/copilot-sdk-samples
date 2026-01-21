@@ -29,6 +29,7 @@ vi.mock("@github/copilot-sdk", () => ({
 }));
 
 import { createClient, runSample } from "../../../shared/client.js";
+// Note: Use .js extension for imports even though files are .ts (ES modules requirement)
 // TODO: Uncomment when using these helpers
 // import { expectSuccess, expectFailure } from "../../helpers/index.js";
 // TODO: Import your sample-specific functions
