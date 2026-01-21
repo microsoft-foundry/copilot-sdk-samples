@@ -706,7 +706,7 @@ const getMockOutput = (demoId: string): string[] => {
   }
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : "";
 
 const getDefaultCommand = (demoId: string, demoType: DemoType): string => {
   if (demoType === "ghaw") {
@@ -741,6 +741,13 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
   const [rlmOwner, setRlmOwner] = useState("microsoft-foundry");
   const [rlmRepo, setRlmRepo] = useState("copilot-sdk-ghaw-samples");
   const [rlmStatus, setRlmStatus] = useState<string | null>(null);
+  const [rlmWorkflowUrl, setRlmWorkflowUrl] = useState<string | null>(null);
+  const [rlmConclusion, setRlmConclusion] = useState<
+    "success" | "failure" | null
+  >(null);
+  const [rlmPhase, setRlmPhase] = useState<
+    "queued" | "in_progress" | "completed" | null
+  >(null);
   const mermaidRef = useRef<HTMLDivElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -994,6 +1001,9 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
       setOpenDropdown(null);
       setRlmQuery("What is 2^(2^(2^(2)))?");
       setRlmExecution(mockRLMExecution);
+      setRlmWorkflowUrl(null);
+      setRlmConclusion(null);
+      setRlmPhase(null);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -1122,17 +1132,32 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
 
     setIsRunning(true);
     setRlmStatus("Connecting to GitHub Actions...");
+    setRlmWorkflowUrl(null);
+    setRlmConclusion(null);
+    setRlmPhase(null);
 
-    const emptyExecution: typeof mockRLMExecution = {
-      ...mockRLMExecution,
-      status: "running",
+    const liveExecution: typeof mockRLMExecution = {
+      id: `exec_live_${Date.now()}`,
+      query: rlmQuery,
+      context: "Live execution via GitHub Actions workflow",
       iterations: [],
+      status: "running",
+      maxIterations: 10,
+      currentDepth: 0,
+      maxDepth: 3,
+      startedAt: new Date().toISOString(),
       completedAt: undefined,
+      environmentType: "github-actions",
+      language: "python",
+      totalLLMCalls: 0,
+      totalCodeExecutions: 0,
       finalAnswer: undefined,
     };
-    setRlmExecution(emptyExecution);
+    setRlmExecution(liveExecution);
 
     abortControllerRef.current = new AbortController();
+    let workflowUrl: string | undefined;
+    let runId: number | undefined;
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/rlm/execute`, {
@@ -1158,6 +1183,7 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let currentEventType = "message";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -1168,31 +1194,119 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
         buffer = lines.pop() || "";
 
         for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEventType = line.slice(7).trim();
+            continue;
+          }
+
           if (line.startsWith("data: ")) {
             try {
               const parsed = JSON.parse(line.slice(6));
-              if (parsed.phase) {
-                setRlmStatus(`${parsed.phase}: ${parsed.message || ""}`);
-              }
-              if (parsed.output) {
+
+              if (currentEventType === "error") {
+                const errorMessage =
+                  parsed.message || parsed.data || "Unknown error occurred";
+                setRlmStatus(`Error: ${errorMessage}`);
                 setRlmExecution((prev) => ({
                   ...prev,
-                  finalAnswer: parsed.output,
+                  status: "failed",
+                  completedAt: new Date().toISOString(),
+                }));
+                currentEventType = "message";
+                continue;
+              }
+
+              if (parsed.htmlUrl) {
+                workflowUrl = parsed.htmlUrl;
+                setRlmWorkflowUrl(parsed.htmlUrl);
+              }
+              if (parsed.runId) {
+                runId = parsed.runId;
+              }
+              if (parsed.conclusion) {
+                setRlmConclusion(parsed.conclusion as "success" | "failure");
+              }
+
+              if (parsed.phase) {
+                const phaseStr = parsed.phase as string;
+                if (
+                  phaseStr === "queued" ||
+                  phaseStr === "in_progress" ||
+                  phaseStr === "completed"
+                ) {
+                  setRlmPhase(phaseStr);
+                }
+                const phaseMessages: Record<string, string> = {
+                  dispatching: "Dispatching workflow...",
+                  queued: `Workflow queued${runId ? ` (Run #${runId})` : ""}`,
+                  in_progress: "Workflow running...",
+                  completed: "Workflow completed, fetching results...",
+                };
+                setRlmStatus(
+                  phaseMessages[parsed.phase] ||
+                    `${parsed.phase}: ${parsed.message || ""}`,
+                );
+
+                setRlmExecution((prev) => ({
+                  ...prev,
+                  status:
+                    parsed.phase === "completed" ? "completed" : "running",
                 }));
               }
+
+              if (parsed.output) {
+                let finalAnswer = parsed.output;
+                try {
+                  const outputData =
+                    typeof parsed.output === "string"
+                      ? JSON.parse(parsed.output)
+                      : parsed.output;
+                  if (outputData.finalAnswer) {
+                    finalAnswer = outputData.finalAnswer;
+                  }
+                  if (
+                    outputData.iterations &&
+                    Array.isArray(outputData.iterations)
+                  ) {
+                    setRlmExecution((prev) => ({
+                      ...prev,
+                      iterations: outputData.iterations,
+                      totalLLMCalls:
+                        outputData.totalLLMCalls ||
+                        outputData.iterations.length,
+                      totalCodeExecutions: outputData.totalCodeExecutions || 0,
+                    }));
+                  }
+                } catch {
+                  /* intentional: graceful JSON parse fallback */
+                }
+
+                setRlmExecution((prev) => ({
+                  ...prev,
+                  finalAnswer: String(finalAnswer),
+                }));
+              }
+
+              currentEventType = "message";
             } catch {
-              // Skip malformed JSON
+              /* intentional: skip malformed SSE data */
             }
           }
         }
       }
 
-      setRlmExecution((prev) => ({
-        ...prev,
-        status: "completed",
-        completedAt: new Date().toISOString(),
-      }));
-      setRlmStatus("Completed");
+      setRlmExecution((prev) => {
+        if (prev.status === "failed") return prev;
+        return {
+          ...prev,
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        };
+      });
+      setRlmStatus((prev) => {
+        if (prev?.startsWith("Error:")) return prev;
+        return workflowUrl ? "View run:" : "Completed";
+      });
     } catch (error) {
       if (error instanceof Error && error.name === "AbortError") {
         setRlmStatus("Stopped by user");
@@ -1470,7 +1584,7 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                                       <input
                                         type="text"
                                         className="modal-token-input"
-                                        placeholder="e.g., copilot-sdk-ghaw-samples"
+                                        placeholder="e.g., copilot-sdk-samples"
                                         value={rlmRepo}
                                         onChange={(e) =>
                                           setRlmRepo(e.target.value)
@@ -1645,18 +1759,22 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                               animate={{ opacity: 1, y: 0 }}
                               style={{
                                 display: "flex",
-                                alignItems: "center",
+                                flexDirection: "column",
                                 gap: "var(--space-2)",
-                                padding: "var(--space-2) var(--space-3)",
+                                padding: "var(--space-3)",
                                 background: isRunning
                                   ? "var(--info-muted)"
-                                  : rlmStatus.toLowerCase().includes("error")
+                                  : rlmConclusion === "failure" ||
+                                      rlmStatus.toLowerCase().includes("error")
                                     ? "var(--error-muted)"
                                     : "var(--success-muted)",
                                 border: `1px solid ${
                                   isRunning
                                     ? "rgba(59, 130, 246, 0.2)"
-                                    : rlmStatus.toLowerCase().includes("error")
+                                    : rlmConclusion === "failure" ||
+                                        rlmStatus
+                                          .toLowerCase()
+                                          .includes("error")
                                       ? "rgba(239, 68, 68, 0.2)"
                                       : "rgba(34, 197, 94, 0.2)"
                                 }`,
@@ -1664,30 +1782,209 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
                                 marginTop: "var(--space-2)",
                               }}
                             >
-                              {isRunning && (
-                                <motion.div
-                                  animate={{ rotate: 360 }}
-                                  transition={{
-                                    repeat: Infinity,
-                                    duration: 1,
-                                    ease: "linear",
+                              {(isRunning || rlmPhase) && (
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "var(--space-3)",
+                                    paddingBottom: "var(--space-2)",
+                                    borderBottom: `1px solid ${
+                                      isRunning
+                                        ? "rgba(59, 130, 246, 0.15)"
+                                        : rlmConclusion === "failure"
+                                          ? "rgba(239, 68, 68, 0.15)"
+                                          : "rgba(34, 197, 94, 0.15)"
+                                    }`,
                                   }}
                                 >
-                                  <Loader2 size={14} />
-                                </motion.div>
+                                  {(
+                                    [
+                                      "queued",
+                                      "in_progress",
+                                      "completed",
+                                    ] as const
+                                  ).map((phase, index) => {
+                                    const isActive = rlmPhase === phase;
+                                    const isPast =
+                                      rlmPhase &&
+                                      ((phase === "queued" &&
+                                        (rlmPhase === "in_progress" ||
+                                          rlmPhase === "completed")) ||
+                                        (phase === "in_progress" &&
+                                          rlmPhase === "completed"));
+                                    const phaseLabels = {
+                                      queued: "Queued",
+                                      in_progress: "Running",
+                                      completed: "Done",
+                                    };
+                                    return (
+                                      <React.Fragment key={phase}>
+                                        {index > 0 && (
+                                          <div
+                                            style={{
+                                              flex: 1,
+                                              height: 2,
+                                              background:
+                                                isPast || isActive
+                                                  ? isRunning
+                                                    ? "var(--info)"
+                                                    : rlmConclusion ===
+                                                        "failure"
+                                                      ? "var(--error)"
+                                                      : "var(--success)"
+                                                  : "var(--border-subtle)",
+                                              borderRadius: 1,
+                                              opacity:
+                                                isPast || isActive ? 0.6 : 0.3,
+                                            }}
+                                          />
+                                        )}
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: "var(--space-1)",
+                                          }}
+                                        >
+                                          <div
+                                            style={{
+                                              width: 8,
+                                              height: 8,
+                                              borderRadius: "50%",
+                                              background: isActive
+                                                ? isRunning
+                                                  ? "var(--info)"
+                                                  : rlmConclusion === "failure"
+                                                    ? "var(--error)"
+                                                    : "var(--success)"
+                                                : isPast
+                                                  ? isRunning
+                                                    ? "var(--info)"
+                                                    : rlmConclusion ===
+                                                        "failure"
+                                                      ? "var(--error)"
+                                                      : "var(--success)"
+                                                  : "var(--border-subtle)",
+                                              opacity: isActive
+                                                ? 1
+                                                : isPast
+                                                  ? 0.6
+                                                  : 0.4,
+                                              boxShadow: isActive
+                                                ? `0 0 6px ${
+                                                    isRunning
+                                                      ? "var(--info)"
+                                                      : rlmConclusion ===
+                                                          "failure"
+                                                        ? "var(--error)"
+                                                        : "var(--success)"
+                                                  }`
+                                                : "none",
+                                            }}
+                                          />
+                                          <span
+                                            style={{
+                                              fontSize: "var(--font-size-xs)",
+                                              color: isActive
+                                                ? isRunning
+                                                  ? "var(--info)"
+                                                  : rlmConclusion === "failure"
+                                                    ? "var(--error)"
+                                                    : "var(--success)"
+                                                : isPast
+                                                  ? "var(--text-secondary)"
+                                                  : "var(--text-muted)",
+                                              fontWeight: isActive ? 500 : 400,
+                                            }}
+                                          >
+                                            {phaseLabels[phase]}
+                                          </span>
+                                        </div>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                </div>
                               )}
-                              <span
+
+                              <div
                                 style={{
-                                  fontSize: "var(--font-size-xs)",
-                                  color: isRunning
-                                    ? "var(--info)"
-                                    : rlmStatus.toLowerCase().includes("error")
-                                      ? "var(--error)"
-                                      : "var(--success)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "var(--space-2)",
                                 }}
                               >
-                                {rlmStatus}
-                              </span>
+                                {isRunning && (
+                                  <motion.div
+                                    animate={{ rotate: 360 }}
+                                    transition={{
+                                      repeat: Infinity,
+                                      duration: 1,
+                                      ease: "linear",
+                                    }}
+                                  >
+                                    <Loader2 size={14} />
+                                  </motion.div>
+                                )}
+                                <span
+                                  style={{
+                                    fontSize: "var(--font-size-xs)",
+                                    color: isRunning
+                                      ? "var(--info)"
+                                      : rlmConclusion === "failure" ||
+                                          rlmStatus
+                                            .toLowerCase()
+                                            .includes("error")
+                                        ? "var(--error)"
+                                        : "var(--success)",
+                                    fontWeight: 500,
+                                  }}
+                                >
+                                  {rlmConclusion === "failure" &&
+                                  !rlmStatus.toLowerCase().includes("error")
+                                    ? "Failed!"
+                                    : rlmConclusion === "success" &&
+                                        rlmStatus === "View run:"
+                                      ? "Completed!"
+                                      : ""}
+                                  {rlmConclusion === "failure" &&
+                                    !rlmStatus
+                                      .toLowerCase()
+                                      .includes("error") &&
+                                    " "}
+                                  {rlmConclusion === "success" &&
+                                    rlmStatus === "View run:" &&
+                                    " "}
+                                  {rlmWorkflowUrl &&
+                                  rlmStatus === "View run:" ? (
+                                    <>
+                                      View run:{" "}
+                                      <a
+                                        href={rlmWorkflowUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          color: "inherit",
+                                          textDecoration: "underline",
+                                          textUnderlineOffset: 2,
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 4,
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {rlmWorkflowUrl.replace(
+                                          /^https:\/\/github\.com\//,
+                                          "",
+                                        )}
+                                        <ExternalLink size={12} />
+                                      </a>
+                                    </>
+                                  ) : (
+                                    rlmStatus
+                                  )}
+                                </span>
+                              </div>
                             </motion.div>
                           )}
                         </motion.div>
