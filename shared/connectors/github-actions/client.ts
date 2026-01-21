@@ -1,4 +1,5 @@
 import { Octokit } from "@octokit/rest";
+import AdmZip from "adm-zip";
 import {
   ConnectorResult,
   HealthCheckResponse,
@@ -697,7 +698,9 @@ class LiveGitHubActionsConnector implements GitHubActionsConnector {
     }
   }
 
-  async downloadArtifact(artifactId: number): Promise<ConnectorResult<string>> {
+  async downloadArtifact(
+    artifactId: number,
+  ): Promise<ConnectorResult<Buffer | string>> {
     if (!this.octokit) {
       return failure({
         code: ErrorCodes.NOT_INITIALIZED,
@@ -712,7 +715,37 @@ class LiveGitHubActionsConnector implements GitHubActionsConnector {
         archive_format: "zip",
       });
 
-      return success(typeof data === "string" ? data : JSON.stringify(data));
+      // Artifacts are downloaded as ZIP files - extract the content
+      let zipBuffer: Buffer;
+      if (data instanceof ArrayBuffer) {
+        zipBuffer = Buffer.from(data);
+      } else {
+        zipBuffer = Buffer.from(JSON.stringify(data));
+      }
+
+      const zip = new AdmZip(zipBuffer);
+      const entries = zip.getEntries();
+
+      // Look for result.json first, then any JSON file
+      const resultEntry =
+        entries.find((e) => e.entryName === "result.json") ??
+        entries.find((e) => e.entryName.endsWith(".json"));
+
+      if (resultEntry) {
+        const content = zip.readAsText(resultEntry);
+        return success(content);
+      }
+
+      // Fallback: return first file's content
+      if (entries.length > 0) {
+        const content = zip.readAsText(entries[0]);
+        return success(content);
+      }
+
+      return failure({
+        code: ErrorCodes.NOT_FOUND,
+        message: "No files found in artifact ZIP",
+      });
     } catch (err) {
       return failure({
         code: ErrorCodes.NETWORK_ERROR,
@@ -765,11 +798,16 @@ class LiveGitHubActionsConnector implements GitHubActionsConnector {
       const downloadResult = await this.downloadArtifact(outputArtifact.id);
       if (downloadResult.success) {
         try {
-          const parsed = JSON.parse(downloadResult.data!);
+          const rawData = downloadResult.data!;
+          const dataStr =
+            typeof rawData === "string" ? rawData : rawData.toString("utf-8");
+          const parsed = JSON.parse(dataStr);
           output = parsed.output ?? null;
           error = parsed.error ?? null;
         } catch {
-          output = downloadResult.data!;
+          const rawData = downloadResult.data!;
+          output =
+            typeof rawData === "string" ? rawData : rawData.toString("utf-8");
         }
       }
     }

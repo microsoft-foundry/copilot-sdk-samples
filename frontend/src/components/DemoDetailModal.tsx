@@ -710,7 +710,7 @@ const API_BASE_URL = import.meta.env.DEV ? "http://localhost:3001" : "";
 
 const getDefaultCommand = (demoId: string, demoType: DemoType): string => {
   if (demoType === "ghaw") {
-    return `gh copilot aw run .github/aw/samples/${demoId}.md`;
+    return `gh aw run .github/aw/samples/${demoId}.md`;
   }
   return `pnpm ${demoId}`;
 };

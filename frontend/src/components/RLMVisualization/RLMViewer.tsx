@@ -39,20 +39,31 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
     };
 
     const allIterations = flattenIterations(execution.iterations);
-    const codeExecutions = allIterations.filter(
+
+    const hasIterations = allIterations.length > 0;
+    const codeExecutionsFromIters = allIterations.filter(
       (i) => i.extractedCode || i.replResult,
     ).length;
     const subLMCalls = allIterations.filter((i) => i.depth > 0).length;
 
+    const totalIterations = hasIterations
+      ? allIterations.length
+      : execution.totalLLMCalls;
+    const codeExecutions =
+      codeExecutionsFromIters > 0
+        ? codeExecutionsFromIters
+        : execution.totalCodeExecutions;
+
     let totalDurationMs = 0;
-    if (execution.startedAt && execution.completedAt) {
-      totalDurationMs =
-        new Date(execution.completedAt).getTime() -
-        new Date(execution.startedAt).getTime();
+    if (execution.startedAt) {
+      const endTime = execution.completedAt
+        ? new Date(execution.completedAt).getTime()
+        : Date.now();
+      totalDurationMs = endTime - new Date(execution.startedAt).getTime();
     }
 
     return {
-      totalIterations: allIterations.length,
+      totalIterations,
       codeExecutions,
       subLMCalls,
       totalDurationMs,
@@ -67,6 +78,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           label: "Completed",
           color: "var(--success)",
           bgColor: "var(--success-muted)",
+          isPulsing: false,
         };
       case "failed":
         return {
@@ -74,6 +86,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           label: "Failed",
           color: "var(--error)",
           bgColor: "var(--error-muted)",
+          isPulsing: false,
         };
       case "running":
         return {
@@ -81,6 +94,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           label: "Running",
           color: "var(--warning)",
           bgColor: "var(--warning-muted)",
+          isPulsing: true,
         };
       case "timeout":
         return {
@@ -88,6 +102,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           label: "Timeout",
           color: "var(--warning)",
           bgColor: "var(--warning-muted)",
+          isPulsing: false,
         };
       default:
         return {
@@ -95,6 +110,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           label: "Pending",
           color: "var(--text-muted)",
           bgColor: "var(--bg-surface)",
+          isPulsing: false,
         };
     }
   }, [execution.status]);
@@ -190,6 +206,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
             }}
           >
             <div
+              className={statusConfig.isPulsing ? "pulse-glow" : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -355,6 +372,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
         codeExecutions={stats.codeExecutions}
         subLMCalls={stats.subLMCalls}
         totalDurationMs={stats.totalDurationMs}
+        isLoading={execution.status === "running"}
       />
 
       <div
@@ -379,6 +397,7 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           iterations={execution.iterations}
           selectedIterationId={selectedIteration?.id || null}
           onSelectIteration={setSelectedIteration}
+          isLoading={execution.status === "running"}
         />
       </div>
 
@@ -390,10 +409,14 @@ const RLMViewer: React.FC<RLMViewerProps> = ({ execution }) => {
           minHeight: 450,
         }}
       >
-        <TrajectoryPanel iteration={selectedIteration} />
+        <TrajectoryPanel
+          iteration={selectedIteration}
+          isLoading={execution.status === "running"}
+        />
         <ExecutionPanel
           iteration={selectedIteration}
           language={execution.language}
+          isLoading={execution.status === "running"}
         />
       </div>
     </motion.div>

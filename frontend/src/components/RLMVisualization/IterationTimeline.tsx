@@ -15,12 +15,88 @@ interface IterationTimelineProps {
   iterations: RLMIteration[];
   selectedIterationId: string | null;
   onSelectIteration: (iteration: RLMIteration) => void;
+  isLoading?: boolean;
 }
+
+const SkeletonCard: React.FC<{ index: number }> = ({ index }) => (
+  <motion.div
+    initial={{ opacity: 0, scale: 0.95 }}
+    animate={{ opacity: 1, scale: 1 }}
+    transition={{ duration: 0.2, delay: index * 0.1 }}
+    style={{
+      minWidth: 280,
+      maxWidth: 320,
+      flexShrink: 0,
+      padding: "var(--space-3)",
+      background: "var(--bg-surface)",
+      border: "1px solid var(--border-subtle)",
+      borderRadius: "var(--radius-md)",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-2)",
+        marginBottom: "var(--space-2)",
+      }}
+    >
+      <div
+        className="shimmer"
+        style={{
+          width: 40,
+          height: 20,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          width: 32,
+          height: 16,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+    </div>
+    <div
+      style={{
+        display: "flex",
+        gap: "var(--space-2)",
+        marginBottom: "var(--space-2)",
+      }}
+    >
+      <div
+        className="shimmer"
+        style={{
+          width: 24,
+          height: 12,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          width: 32,
+          height: 12,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+    </div>
+    <div
+      className="shimmer"
+      style={{
+        height: 32,
+        borderRadius: "var(--radius-sm)",
+      }}
+    />
+  </motion.div>
+);
 
 const IterationTimeline: React.FC<IterationTimelineProps> = ({
   iterations,
   selectedIterationId,
   onSelectIteration,
+  isLoading = false,
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const selectedRef = useRef<HTMLDivElement>(null);
@@ -103,6 +179,23 @@ const IterationTimeline: React.FC<IterationTimelineProps> = ({
   };
 
   if (allIterations.length === 0) {
+    if (isLoading) {
+      return (
+        <div
+          ref={scrollRef}
+          style={{
+            display: "flex",
+            gap: "var(--space-3)",
+            overflowX: "auto",
+            padding: "var(--space-2) var(--space-1)",
+          }}
+        >
+          {[0, 1, 2].map((index) => (
+            <SkeletonCard key={index} index={index} />
+          ))}
+        </div>
+      );
+    }
     return (
       <div
         style={{

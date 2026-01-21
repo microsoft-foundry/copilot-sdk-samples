@@ -14,13 +14,81 @@ import type { RLMIteration, REPLResult } from "../../hooks/useRLMExecution";
 interface ExecutionPanelProps {
   iteration: RLMIteration | null;
   language: "python" | "nodejs";
+  isLoading?: boolean;
 }
 
 type TabType = "code" | "sublm";
 
+const SkeletonContent: React.FC = () => (
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      background: "var(--bg-card)",
+      borderRadius: "var(--radius-lg)",
+      border: "1px solid var(--border-default)",
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "var(--space-1)",
+        padding: "var(--space-2)",
+        borderBottom: "1px solid var(--border-subtle)",
+        background: "var(--bg-surface)",
+      }}
+    >
+      <div
+        className="shimmer"
+        style={{
+          width: 120,
+          height: 32,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          width: 100,
+          height: 32,
+          borderRadius: "var(--radius-sm)",
+        }}
+      />
+    </div>
+    <div
+      style={{
+        flex: 1,
+        padding: "var(--space-4)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-4)",
+      }}
+    >
+      <div
+        className="shimmer"
+        style={{
+          height: 140,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          height: 100,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+    </div>
+  </div>
+);
+
 const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
   iteration,
   language,
+  isLoading = false,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>("code");
 
@@ -33,6 +101,9 @@ const ExecutionPanel: React.FC<ExecutionPanelProps> = ({
   const hasSubLM = iteration && iteration.nestedQueries.length > 0;
 
   if (!iteration) {
+    if (isLoading) {
+      return <SkeletonContent />;
+    }
     return (
       <div
         style={{

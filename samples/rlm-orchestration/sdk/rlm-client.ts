@@ -469,7 +469,18 @@ export class RLMClient {
 
       await session.send({ prompt });
       await done;
-      await session.destroy();
+
+      // Gracefully destroy session - ignore stream errors that can occur
+      // when the jsonrpc connection is closing while pending writes exist
+      try {
+        await session.destroy();
+      } catch (destroyError) {
+        // ERR_STREAM_DESTROYED is expected and harmless when the connection
+        // is already closing - ignore it but log in debug mode
+        if (this.config.debug) {
+          console.log("[RLM Debug] Session destroy warning:", destroyError);
+        }
+      }
 
       if (this.config.debug) {
         console.log(

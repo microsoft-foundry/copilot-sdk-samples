@@ -129,8 +129,10 @@ export interface GitHubActionsConnector extends BaseConnector {
   /** List artifacts from a completed workflow run */
   listArtifacts(runId: number): Promise<ConnectorResult<WorkflowArtifact[]>>;
 
-  /** Download artifact content */
-  downloadArtifact(artifactId: number): Promise<ConnectorResult<string>>;
+  /** Download artifact content (returns zip buffer for live mode, JSON string for mock) */
+  downloadArtifact(
+    artifactId: number,
+  ): Promise<ConnectorResult<Buffer | string>>;
 
   /** High-level method to dispatch a workflow and wait for REPL result */
   executeREPL(

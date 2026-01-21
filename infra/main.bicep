@@ -114,16 +114,18 @@ module containerRegistry './modules/container-registry.bicep' = {
   }
 }
 
+// Secrets must have non-empty values for Container Apps
+// Use placeholder 'not-set' for unset secrets - app code handles mock mode gracefully
 var apiSecrets = [
-  { name: 'copilot-github-token', value: copilotGithubToken }
-  { name: 'github-token', value: githubToken }
-  { name: 'atlassian-api-token', value: atlassianApiToken }
-  { name: 'pagerduty-api-key', value: pagerdutyApiKey }
-  { name: 'datadog-api-key', value: datadogApiKey }
-  { name: 'datadog-app-key', value: datadogAppKey }
-  { name: 'snyk-api-token', value: snykApiToken }
-  { name: 'slack-bot-token', value: slackBotToken }
-  { name: 'slack-signing-secret', value: slackSigningSecret }
+  { name: 'copilot-github-token', value: !empty(copilotGithubToken) ? copilotGithubToken : 'not-set' }
+  { name: 'github-token', value: !empty(githubToken) ? githubToken : 'not-set' }
+  { name: 'atlassian-api-token', value: !empty(atlassianApiToken) ? atlassianApiToken : 'not-set' }
+  { name: 'pagerduty-api-key', value: !empty(pagerdutyApiKey) ? pagerdutyApiKey : 'not-set' }
+  { name: 'datadog-api-key', value: !empty(datadogApiKey) ? datadogApiKey : 'not-set' }
+  { name: 'datadog-app-key', value: !empty(datadogAppKey) ? datadogAppKey : 'not-set' }
+  { name: 'snyk-api-token', value: !empty(snykApiToken) ? snykApiToken : 'not-set' }
+  { name: 'slack-bot-token', value: !empty(slackBotToken) ? slackBotToken : 'not-set' }
+  { name: 'slack-signing-secret', value: !empty(slackSigningSecret) ? slackSigningSecret : 'not-set' }
 ]
 
 var apiEnvVars = [
@@ -172,8 +174,10 @@ module webApp './modules/frontend-app.bicep' = {
     containerRegistryName: containerRegistry.outputs.name
     env: [
       {
-        name: 'VITE_API_URL'
-        value: apiApp.outputs.uri
+        // Use API's external FQDN via HTTPS - nginx proxies /api/* to this URL
+        // This works for external-to-external container app communication
+        name: 'BACKEND_URL'
+        value: 'https://${abbrs.appContainerApps}api-${resourceToken}.${containerAppsEnvironment.outputs.defaultDomain}'
       }
     ]
   }

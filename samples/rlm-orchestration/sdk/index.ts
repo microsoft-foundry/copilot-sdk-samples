@@ -11,10 +11,150 @@ import { CopilotClient } from "@github/copilot-sdk";
 import { runSample, DEFAULT_MODEL } from "../../../shared/index.js";
 import { createRLMClient, RLMClient } from "./rlm-client.js";
 import {
-  createACASessionsEnvironment,
-  ACASessionsEnvironment,
-} from "./environments/aca-sessions.js";
-import { RLMEvent, RLMExecution, calculateStats } from "./types.js";
+  createGitHubActionsEnvironment,
+  GitHubActionsEnvironment,
+} from "./environments/github-actions.js";
+import {
+  RLMEvent,
+  RLMExecution,
+  RLMIteration,
+  calculateStats,
+} from "./types.js";
+
+// Check if running in GitHub Actions with streaming enabled
+const STREAMING_MODE = process.env.RLM_STREAMING === "true";
+
+/**
+ * Serialize an RLMEvent to a JSON-safe format for NDJSON streaming.
+ * Strips circular references and large payloads.
+ */
+function serializeEventForStream(event: RLMEvent): Record<string, unknown> {
+  const base: Record<string, unknown> = {
+    type: event.type,
+    timestamp: new Date().toISOString(),
+  };
+
+  switch (event.type) {
+    case "execution_start":
+    case "execution_complete":
+      return {
+        ...base,
+        execution: {
+          id: event.execution.id,
+          query: event.execution.query,
+          status: event.execution.status,
+          finalAnswer: event.execution.finalAnswer,
+          totalLLMCalls: event.execution.totalLLMCalls,
+          totalCodeExecutions: event.execution.totalCodeExecutions,
+          iterationCount: event.execution.iterations.length,
+        },
+      };
+
+    case "iteration_start":
+    case "iteration_complete":
+      return {
+        ...base,
+        iteration: serializeIteration(event.iteration),
+        executionId: event.execution.id,
+      };
+
+    case "code_extracted":
+      return {
+        ...base,
+        code: event.code,
+        iterationId: event.iteration.id,
+        iterationNumber: event.iteration.number,
+      };
+
+    case "repl_executing":
+      return {
+        ...base,
+        code: event.code,
+        iterationId: event.iteration.id,
+      };
+
+    case "repl_result":
+      return {
+        ...base,
+        result: {
+          success: event.result.success,
+          stdout: event.result.stdout?.slice(0, 2000), // Truncate large outputs
+          stderr: event.result.stderr?.slice(0, 500),
+          durationMs: event.result.durationMs,
+        },
+        iterationId: event.iteration.id,
+      };
+
+    case "final_detected":
+      return {
+        ...base,
+        response: event.response,
+        iterationId: event.iteration.id,
+      };
+
+    case "llm_query_start":
+      return {
+        ...base,
+        prompt: event.prompt.slice(0, 500), // Truncate
+        context: { depth: event.context.depth },
+      };
+
+    case "llm_query_complete":
+      return {
+        ...base,
+        response: event.response.slice(0, 500), // Truncate
+        context: { depth: event.context.depth },
+      };
+
+    case "error":
+      return {
+        ...base,
+        error: { message: event.error.message },
+        executionId: event.execution.id,
+      };
+
+    default:
+      return base;
+  }
+}
+
+/**
+ * Serialize an iteration for streaming (without circular refs)
+ */
+function serializeIteration(iteration: RLMIteration): Record<string, unknown> {
+  return {
+    id: iteration.id,
+    number: iteration.number,
+    input: iteration.input.slice(0, 500),
+    llmResponse: iteration.llmResponse?.slice(0, 1000),
+    extractedCode: iteration.extractedCode,
+    replResult: iteration.replResult
+      ? {
+          success: iteration.replResult.success,
+          stdout: iteration.replResult.stdout?.slice(0, 1000),
+          stderr: iteration.replResult.stderr?.slice(0, 500),
+          durationMs: iteration.replResult.durationMs,
+        }
+      : undefined,
+    isFinal: iteration.isFinal,
+    finalAnswer: iteration.finalAnswer,
+    startedAt: iteration.startedAt,
+    completedAt: iteration.completedAt,
+    depth: iteration.depth,
+    nestedQueryCount: iteration.nestedQueries.length,
+  };
+}
+
+/**
+ * Write an NDJSON event to stdout for streaming
+ */
+function emitStreamEvent(event: RLMEvent): void {
+  if (STREAMING_MODE) {
+    const serialized = serializeEventForStream(event);
+    // Use special prefix so we can distinguish from other console output
+    console.log(`__RLM_EVENT__${JSON.stringify(serialized)}`);
+  }
+}
 
 const SAMPLE_CONTEXT = `
 # Project Analysis Report
@@ -66,14 +206,35 @@ async function main() {
     {
       name: "RLM Orchestration",
       description:
-        "Recursive LLM pattern with Azure Container Apps Dynamic Sessions",
+        "Recursive LLM pattern with Copilot SDK and GitHub Actions (could swap with Azure Container Apps Dynamic Sessions)",
     },
     async (client: CopilotClient) => {
-      const environment = createACASessionsEnvironment({
-        mode: "mock",
+      // Use live mode if GITHUB_TOKEN is set, otherwise mock
+      const useLiveMode =
+        !!process.env.GITHUB_TOKEN && !!process.env.GITHUB_REPOSITORY;
+      const [owner, repo] = (
+        process.env.GITHUB_REPOSITORY ?? "owner/repo"
+      ).split("/");
+
+      const environment = createGitHubActionsEnvironment({
+        mode: useLiveMode ? "live" : "mock",
         language: "python",
-        debug: false,
+        debug: true,
+        owner,
+        repo,
+        token: process.env.GITHUB_TOKEN,
+        workflowId: "rlm-repl.yml",
+        ref: "main",
       });
+
+      console.log(
+        `[Environment] Using ${useLiveMode ? "LIVE" : "MOCK"} GitHub Actions`,
+      );
+      if (!useLiveMode) {
+        console.log(
+          "[Environment] Set GITHUB_TOKEN and GITHUB_REPOSITORY for live execution\n",
+        );
+      }
 
       const rlmClient = createRLMClient(client, environment, {
         maxIterations: 10,
@@ -98,7 +259,7 @@ async function main() {
 
 async function demonstrateSummarization(
   rlmClient: RLMClient,
-  environment: ACASessionsEnvironment,
+  environment: GitHubActionsEnvironment,
 ): Promise<void> {
   console.log("--- Query 1: Simple Summarization Task ---\n");
   console.log(
@@ -127,7 +288,7 @@ async function demonstrateSummarization(
 
 async function demonstrateCodeAnalysis(
   rlmClient: RLMClient,
-  environment: ACASessionsEnvironment,
+  environment: GitHubActionsEnvironment,
 ): Promise<void> {
   console.log("--- Query 2: Multi-Step Code Analysis Task ---\n");
   console.log(
@@ -160,6 +321,8 @@ async function demonstrateCodeAnalysis(
 
 function createEventLogger(prefix: string): (event: RLMEvent) => void {
   return (event: RLMEvent) => {
+    emitStreamEvent(event);
+
     switch (event.type) {
       case "execution_start":
         console.log(`  [${prefix}] Execution started`);
@@ -238,6 +401,26 @@ function printExecutionResult(execution: RLMExecution): void {
     if (lines.length > 10) {
       console.log(`  ... (${lines.length - 10} more lines)`);
     }
+  }
+
+  if (STREAMING_MODE) {
+    const fullExecutionData = {
+      type: "execution_summary",
+      timestamp: new Date().toISOString(),
+      execution: {
+        id: execution.id,
+        query: execution.query,
+        status: execution.status,
+        finalAnswer: execution.finalAnswer,
+        totalLLMCalls: execution.totalLLMCalls,
+        totalCodeExecutions: execution.totalCodeExecutions,
+        startedAt: execution.startedAt,
+        completedAt: execution.completedAt,
+        iterations: execution.iterations.map(serializeIteration),
+      },
+      stats,
+    };
+    console.log(`__RLM_EVENT__${JSON.stringify(fullExecutionData)}`);
   }
 }
 

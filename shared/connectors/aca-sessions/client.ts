@@ -190,8 +190,22 @@ class MockACASessionsConnector implements ACASessionsConnector {
     session.lastAccessedAt = new Date().toISOString();
 
     const startTime = Date.now();
-    const { stdout, stderr, result } = this.simulateCodeExecution(options.code);
+    const { stdout, stderr, result } = this.simulateCodeExecution(
+      options.code,
+      options.sessionId,
+    );
     const executionTimeInMs = Date.now() - startTime;
+
+    if (this.config.debug) {
+      console.log(
+        `\n[MOCK REPL] Executing code (${options.code.length} chars):`,
+      );
+      console.log(
+        `---CODE---\n${options.code.slice(0, 500)}${options.code.length > 500 ? "..." : ""}\n---END---`,
+      );
+      console.log(`[MOCK REPL] stdout: ${stdout.slice(0, 200) || "(empty)"}`);
+      console.log(`[MOCK REPL] result: ${result?.slice(0, 200) || "(null)"}`);
+    }
 
     return success({
       stdout,
@@ -201,19 +215,46 @@ class MockACASessionsConnector implements ACASessionsConnector {
     });
   }
 
-  private simulateCodeExecution(code: string): {
+  private simulateCodeExecution(
+    code: string,
+    sessionId: string,
+  ): {
     stdout: string;
     stderr: string;
     result: string | null;
   } {
+    // Substitute variable references with actual values
+    const sessionVars = this.variables.get(sessionId);
+    let processedCode = code;
+    if (sessionVars) {
+      for (const [name, variable] of sessionVars) {
+        // Replace variable references in print statements
+        const varPattern = new RegExp(`\\b${name}\\b`, "g");
+        processedCode = processedCode.replace(
+          varPattern,
+          JSON.stringify(variable.value),
+        );
+      }
+    }
+
     if (code.includes("print(")) {
-      const match = code.match(/print\(["'](.+?)["']\)/);
+      const match = processedCode.match(/print\(["'](.+?)["']\)/);
       if (match) {
         return { stdout: match[1] + "\n", stderr: "", result: null };
       }
-      const exprMatch = code.match(/print\((.+?)\)/);
+      // Handle print with variable - use processed code
+      const exprMatch = processedCode.match(/print\((.+?)\)/);
       if (exprMatch) {
-        return { stdout: `${exprMatch[1]}\n`, stderr: "", result: null };
+        let output = exprMatch[1];
+        // If it looks like a JSON string, try to parse and pretty print
+        if (output.startsWith('"') || output.startsWith("'")) {
+          try {
+            output = JSON.parse(output);
+          } catch {
+            // Keep as-is
+          }
+        }
+        return { stdout: `${output}\n`, stderr: "", result: null };
       }
     }
 
