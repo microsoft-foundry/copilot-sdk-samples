@@ -1,85 +1,91 @@
 name: RLM REPL Executor
 
+# This workflow executes arbitrary Python/Node code snippets
+# Used by the RLM orchestration sample for secure remote code execution
+
 on:
   workflow_dispatch:
     inputs:
-      query:
-        description: "Query to execute via RLM"
+      code:
+        description: "Code to execute"
         required: true
         type: string
       language:
-        description: "Programming language for code execution"
+        description: "Programming language (python or node)"
         required: false
         default: "python"
         type: string
       timeout:
-        description: "Execution timeout in seconds"
+        description: "Execution timeout in milliseconds"
         required: false
-        default: "60"
+        default: "60000"
         type: string
 
 jobs:
   execute:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
       - name: Setup Python
         if: inputs.language == 'python'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Node.js
+        if: inputs.language == 'node'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Execute RLM query
-        id: rlm
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RLM_QUERY: ${{ inputs.query }}
-          RLM_LANGUAGE: ${{ inputs.language }}
-          RLM_TIMEOUT: ${{ inputs.timeout }}
-          RLM_STREAMING: "true"
+      - name: Execute code
+        id: execute
         run: |
           mkdir -p output
-          pnpm rlm-orchestration 2>&1 | tee output/execution.log
 
-          # Extract RLM events from the log into a separate NDJSON file
-          grep '__RLM_EVENT__' output/execution.log | sed 's/__RLM_EVENT__//' > output/events.ndjson || true
+          # Calculate timeout in seconds (input is milliseconds)
+          TIMEOUT_MS="${{ inputs.timeout }}"
+          TIMEOUT_SEC=$((TIMEOUT_MS / 1000))
+          if [ "$TIMEOUT_SEC" -lt 1 ]; then TIMEOUT_SEC=60; fi
 
-          # Create a summary JSON with the final execution state
-          if [ -f output/events.ndjson ]; then
-            # Get the last execution_summary event if it exists
-            tail -1 output/events.ndjson | grep -q '"type":"execution_summary"' && \
-              tail -1 output/events.ndjson > output/summary.json || \
-              echo '{"type":"no_summary"}' > output/summary.json
+          echo "Executing ${{ inputs.language }} code with ${TIMEOUT_SEC}s timeout..."
+
+          if [ "${{ inputs.language }}" == "python" ]; then
+            # Write code to file (using base64 to handle special chars)
+            echo '${{ inputs.code }}' > /tmp/script.py
+            
+            # Execute with timeout, capture output
+            set +e
+            timeout ${TIMEOUT_SEC}s python /tmp/script.py > output/stdout.txt 2> output/stderr.txt
+            EXIT_CODE=$?
+            set -e
+          else
+            # Node.js execution
+            echo '${{ inputs.code }}' > /tmp/script.js
+            
+            set +e
+            timeout ${TIMEOUT_SEC}s node /tmp/script.js > output/stdout.txt 2> output/stderr.txt
+            EXIT_CODE=$?
+            set -e
           fi
 
-          echo "execution_complete=true" >> $GITHUB_OUTPUT
+          # Build JSON output (escape for JSON)
+          STDOUT=$(cat output/stdout.txt | jq -Rs .)
+          STDERR=$(cat output/stderr.txt | jq -Rs .)
 
-      - name: Upload execution output
+          if [ $EXIT_CODE -eq 0 ]; then
+            echo "{\"output\": ${STDOUT}, \"error\": null, \"exitCode\": 0}" > output/result.json
+          else
+            echo "{\"output\": ${STDOUT}, \"error\": ${STDERR}, \"exitCode\": ${EXIT_CODE}}" > output/result.json
+          fi
+
+          echo "=== Result ==="
+          cat output/result.json
+
+      - name: Upload output artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rlm-output
-          path: output/
-          retention-days: 7
-
-      - name: Upload execution log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: execution-log
-          path: output/execution.log
-          retention-days: 7
+          name: repl-output
+          path: output/result.json
+          retention-days: 1

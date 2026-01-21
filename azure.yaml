@@ -21,14 +21,13 @@ services:
       remoteBuild: true
 
   # Frontend React app - served via nginx on port 80
+  # nginx proxies /api/* to backend using internal Container Apps DNS
   web:
     project: ./frontend
     language: ts
     host: containerapp
     docker:
-      path: ./Dockerfile.frontend
+      path: ../Dockerfile.frontend
       context: ..
       target: production
       remoteBuild: true
-      buildArgs:
-        VITE_API_URL: ${SERVICE_API_URI}

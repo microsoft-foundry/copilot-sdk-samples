@@ -12,6 +12,7 @@
   "dependencies": {
     "framer-motion": "12.27.0",
     "lucide-react": "^0.562.0",
+    "mermaid": "^11.12.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

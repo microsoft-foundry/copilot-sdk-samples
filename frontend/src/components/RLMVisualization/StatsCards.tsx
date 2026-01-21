@@ -7,13 +7,26 @@ interface StatsCardsProps {
   codeExecutions: number;
   subLMCalls: number;
   totalDurationMs: number;
+  isLoading?: boolean;
 }
+
+const SkeletonValue: React.FC = () => (
+  <div
+    className="shimmer"
+    style={{
+      height: 24,
+      width: 48,
+      borderRadius: "var(--radius-sm)",
+    }}
+  />
+);
 
 const StatsCards: React.FC<StatsCardsProps> = ({
   totalIterations,
   codeExecutions,
   subLMCalls,
   totalDurationMs,
+  isLoading = false,
 }) => {
   const formatDuration = (ms: number): string => {
     if (ms < 1000) return `${ms}ms`;
@@ -52,6 +65,8 @@ const StatsCards: React.FC<StatsCardsProps> = ({
     },
   ];
 
+  const showSkeleton = isLoading && totalIterations === 0;
+
   return (
     <div
       style={{
@@ -77,6 +92,7 @@ const StatsCards: React.FC<StatsCardsProps> = ({
           }}
         >
           <div
+            className={showSkeleton ? "pulse-subtle" : undefined}
             style={{
               width: 40,
               height: 40,
@@ -102,16 +118,20 @@ const StatsCards: React.FC<StatsCardsProps> = ({
             >
               {stat.label}
             </div>
-            <div
-              style={{
-                fontSize: "var(--font-size-xl)",
-                fontWeight: 700,
-                color: "var(--text-primary)",
-                lineHeight: 1,
-              }}
-            >
-              {stat.value}
-            </div>
+            {showSkeleton ? (
+              <SkeletonValue />
+            ) : (
+              <div
+                style={{
+                  fontSize: "var(--font-size-xl)",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  lineHeight: 1,
+                }}
+              >
+                {stat.value}
+              </div>
+            )}
           </div>
         </motion.div>
       ))}

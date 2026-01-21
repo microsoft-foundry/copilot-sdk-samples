@@ -14,9 +14,97 @@ import { SYSTEM_PROMPT } from "../../data/rlmMockData";
 
 interface TrajectoryPanelProps {
   iteration: RLMIteration | null;
+  isLoading?: boolean;
 }
 
-const TrajectoryPanel: React.FC<TrajectoryPanelProps> = ({ iteration }) => {
+const SkeletonContent: React.FC = () => (
+  <div
+    style={{
+      flex: 1,
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
+      background: "var(--bg-card)",
+      borderRadius: "var(--radius-lg)",
+      border: "1px solid var(--border-default)",
+    }}
+  >
+    <div
+      style={{
+        padding: "var(--space-4)",
+        borderBottom: "1px solid var(--border-subtle)",
+        background: "var(--bg-surface)",
+      }}
+    >
+      <div
+        style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}
+      >
+        <FileText size={16} style={{ color: "var(--brand-light)" }} />
+        <span
+          style={{
+            fontSize: "var(--font-size-sm)",
+            fontWeight: 600,
+            color: "var(--text-primary)",
+          }}
+        >
+          LLM Trajectory
+        </span>
+        <div
+          className="shimmer"
+          style={{
+            width: 80,
+            height: 16,
+            borderRadius: "var(--radius-sm)",
+            marginLeft: "var(--space-2)",
+          }}
+        />
+      </div>
+    </div>
+    <div
+      style={{
+        flex: 1,
+        padding: "var(--space-4)",
+        display: "flex",
+        flexDirection: "column",
+        gap: "var(--space-4)",
+      }}
+    >
+      <div
+        className="shimmer"
+        style={{
+          height: 48,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          height: 64,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          height: 120,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+      <div
+        className="shimmer"
+        style={{
+          height: 80,
+          borderRadius: "var(--radius-md)",
+        }}
+      />
+    </div>
+  </div>
+);
+
+const TrajectoryPanel: React.FC<TrajectoryPanelProps> = ({
+  iteration,
+  isLoading = false,
+}) => {
   const [systemPromptExpanded, setSystemPromptExpanded] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
@@ -66,6 +154,9 @@ const TrajectoryPanel: React.FC<TrajectoryPanelProps> = ({ iteration }) => {
   };
 
   if (!iteration) {
+    if (isLoading) {
+      return <SkeletonContent />;
+    }
     return (
       <div
         style={{
