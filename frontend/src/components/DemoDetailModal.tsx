@@ -27,8 +27,10 @@ import type { Demo } from "../types";
 import Badge from "./Badge";
 import { RLMViewer } from "./RLMVisualization";
 import { SkillTestingViewer } from "./SkillTestingVisualization";
+import { PCBViewer } from "./PCBVisualization";
 import { mockRLMExecution } from "../data/rlmMockData";
 import { skillTestingMockData } from "../data/skillTestingMockData";
+import { edaPcbMockData } from "../data/edaPcbMockData";
 
 interface DemoDetailModalProps {
   demo: Demo;
@@ -128,20 +130,6 @@ const SAMPLE_PARAMS: Record<string, SampleParam[]> = {
       type: "textarea",
     },
   ],
-  "jira-confluence": [
-    {
-      key: "project_key",
-      label: "Jira Project Key",
-      placeholder: "e.g., PROJ",
-      defaultValue: "DEMO",
-    },
-    {
-      key: "space_key",
-      label: "Confluence Space Key",
-      placeholder: "e.g., ENG",
-      defaultValue: "DOCS",
-    },
-  ],
   pagerduty: [
     {
       key: "urgency",
@@ -183,27 +171,6 @@ const SAMPLE_PARAMS: Record<string, SampleParam[]> = {
       ],
     },
   ],
-  snyk: [
-    {
-      key: "severity",
-      label: "Minimum Severity",
-      placeholder: "Filter by severity",
-      defaultValue: "high",
-      type: "select",
-      options: [
-        { value: "critical", label: "Critical" },
-        { value: "high", label: "High" },
-        { value: "medium", label: "Medium" },
-        { value: "low", label: "Low" },
-      ],
-    },
-    {
-      key: "limit",
-      label: "Max Vulnerabilities",
-      placeholder: "Number of vulnerabilities to show",
-      defaultValue: "10",
-    },
-  ],
   teams: [
     {
       key: "team_name",
@@ -239,6 +206,32 @@ const SAMPLE_PARAMS: Record<string, SampleParam[]> = {
       ],
     },
   ],
+  "eda-pcb": [
+    {
+      key: "board_id",
+      label: "Board ID",
+      placeholder: "Select a PCB board",
+      defaultValue: "BOARD001",
+      type: "select",
+      options: [
+        { value: "BOARD001", label: "STM32 Dev Board" },
+        { value: "BOARD002", label: "USB-C Power Delivery" },
+      ],
+    },
+    {
+      key: "analysis_type",
+      label: "Analysis Type",
+      placeholder: "Type of analysis to run",
+      defaultValue: "health",
+      type: "select",
+      options: [
+        { value: "health", label: "Design Health Report" },
+        { value: "drc", label: "Design Rule Check" },
+        { value: "routing", label: "Routing Analysis" },
+        { value: "signal", label: "Signal Integrity" },
+      ],
+    },
+  ],
 };
 
 // All demos require GITHUB_TOKEN for Copilot SDK API access
@@ -253,26 +246,6 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
   "issue-triage": [GITHUB_TOKEN_FIELD],
   "security-alerts": [GITHUB_TOKEN_FIELD],
   "mcp-orchestration": [GITHUB_TOKEN_FIELD],
-  "jira-confluence": [
-    GITHUB_TOKEN_FIELD,
-    {
-      key: "JIRA_HOST",
-      label: "Jira Host",
-      placeholder: "your-domain.atlassian.net",
-    },
-    {
-      key: "JIRA_EMAIL",
-      label: "Email",
-      placeholder: "your-email@example.com",
-    },
-    {
-      key: "JIRA_API_TOKEN",
-      label: "Jira API Token",
-      placeholder: "your-api-token",
-      helpUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
-      helpText: "Create Atlassian API token",
-    },
-  ],
   pagerduty: [
     GITHUB_TOKEN_FIELD,
     {
@@ -302,16 +275,6 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
       helpText: "Create Datadog App key",
     },
   ],
-  snyk: [
-    GITHUB_TOKEN_FIELD,
-    {
-      key: "SNYK_TOKEN",
-      label: "Snyk API Token",
-      placeholder: "your-snyk-token",
-      helpUrl: "https://app.snyk.io/account",
-      helpText: "Get Snyk API token",
-    },
-  ],
   slack: [GITHUB_TOKEN_FIELD],
   teams: [
     GITHUB_TOKEN_FIELD,
@@ -335,6 +298,7 @@ const TOKEN_FIELDS: Record<string, TokenField[]> = {
     },
   ],
   "skill-testing": [GITHUB_TOKEN_FIELD],
+  "eda-pcb": [GITHUB_TOKEN_FIELD],
 };
 
 const getMockOutput = (demoId: string): string[] => {
@@ -455,37 +419,6 @@ const getMockOutput = (demoId: string): string[] => {
         "--- Completed: MCP Orchestration ---",
       ];
 
-    case "jira-confluence":
-      return [
-        "--- Running: Jira + Confluence ---",
-        "Description: Atlassian integration for issue sync and documentation",
-        "",
-        "=== GitHub → Jira Sync ===",
-        "",
-        "Syncing 3 issues...",
-        "",
-        "  GitHub #42 → Jira PROJ-101 (Created)",
-        "    Title: API rate limiting not working",
-        "    Type: Bug | Priority: High",
-        "",
-        "  GitHub #43 → Jira PROJ-102 (Updated)",
-        "    Title: Add OAuth2 support",
-        "    Type: Story | Priority: Medium",
-        "",
-        "  GitHub #44 → Jira PROJ-103 (Created)",
-        "    Title: Update deployment docs",
-        "    Type: Task | Priority: Low",
-        "",
-        "=== Confluence Documentation ===",
-        "",
-        "Generated: Sprint 24 Release Notes",
-        "  Location: Engineering/Releases/Sprint-24",
-        "  Sections: Summary, Changes, Migration Guide",
-        "  Status: Published",
-        "",
-        "--- Completed: Jira + Confluence ---",
-      ];
-
     case "pagerduty":
       return [
         "--- Running: PagerDuty Incident Management ---",
@@ -567,54 +500,6 @@ const getMockOutput = (demoId: string): string[] => {
         "--- Completed: Datadog ---",
       ];
 
-    case "snyk":
-      return [
-        "--- Running: Snyk Security ---",
-        "Description: Security scanning and vulnerability detection",
-        "",
-        "=== Snyk Vulnerability Scan ===",
-        "",
-        "Scanning project dependencies...",
-        "",
-        "=== Scan Results ===",
-        "",
-        "Total Vulnerabilities: 7",
-        "  Critical: 1",
-        "  High: 2",
-        "  Medium: 3",
-        "  Low: 1",
-        "",
-        "=== Critical Vulnerabilities ===",
-        "",
-        "1. lodash - Prototype Pollution",
-        "   CVE: SNYK-JS-LODASH-1018905",
-        "   Severity: CRITICAL",
-        "   Fixable: Yes",
-        "   Fix: Upgrade to lodash@4.17.21",
-        "",
-        "=== High Vulnerabilities ===",
-        "",
-        "2. axios - Server-Side Request Forgery",
-        "   CVE: SNYK-JS-AXIOS-6032459",
-        "   Severity: HIGH",
-        "   Fix: Upgrade to axios@1.6.0",
-        "",
-        "3. jsonwebtoken - Signature Bypass",
-        "   CVE: SNYK-JS-JSONWEBTOKEN-3180022",
-        "   Severity: HIGH",
-        "   Fix: Upgrade to jsonwebtoken@9.0.0",
-        "",
-        "=== License Compliance ===",
-        "",
-        "Packages scanned: 847",
-        "  MIT: 612",
-        "  Apache-2.0: 198",
-        "  ISC: 32",
-        "  Other: 5 (requires review)",
-        "",
-        "--- Completed: Snyk ---",
-      ];
-
     case "teams":
       return [
         "--- Running: Microsoft Teams ---",
@@ -693,6 +578,79 @@ const getMockOutput = (demoId: string): string[] => {
         "Duration: 147ms",
         "",
         "--- Completed: Skill Testing ---",
+      ];
+
+    case "eda-pcb":
+      return [
+        "--- Running: EDA PCB Design ---",
+        "Description: AI-powered PCB design assistant",
+        "",
+        "=== Board Summary ===",
+        "",
+        "Board: STM32 Dev Board (BOARD001)",
+        "Dimensions: 100mm x 80mm",
+        "Layers: 4 (Top, Inner1, Inner2, Bottom)",
+        "Components: 47",
+        "Nets: 156",
+        "Routing Completion: 87.3%",
+        "",
+        "=== Component Placement Analysis ===",
+        "",
+        "Total Components: 47",
+        "  Top Layer: 42",
+        "  Bottom Layer: 5",
+        "",
+        "By Package Type:",
+        "  LQFP: 1 (U1 - STM32F429)",
+        "  QFN: 2 (regulators)",
+        "  SMD0402: 28 (passives)",
+        "  SMD0603: 12 (passives)",
+        "  USB-C: 1 (J1)",
+        "",
+        "Critical Components: U1, J1, Y1",
+        "Placement Density: 34.2%",
+        "",
+        "=== Design Rule Check ===",
+        "",
+        "DRC Status: ⚠️ Warnings",
+        "  Errors: 0",
+        "  Warnings: 2",
+        "  Info: 5",
+        "",
+        "Warnings:",
+        "  1. Trace clearance 0.15mm near U1 pin 42 (min: 0.2mm)",
+        "  2. Via-to-pad spacing 0.18mm at NET_USB_DP (min: 0.2mm)",
+        "",
+        "=== Signal Integrity Analysis ===",
+        "",
+        "Analyzed: 12 critical nets",
+        "  Passed: 10",
+        "  Failed: 2",
+        "",
+        "Issues:",
+        "  NET_USB_DP: Impedance mismatch (target: 90Ω, actual: 82Ω)",
+        "  NET_USB_DN: Trace length mismatch with DP (Δ2.3mm)",
+        "",
+        "=== Routing Analysis ===",
+        "",
+        "Completion: 87.3%",
+        "Total Trace Length: 2,847mm",
+        "Via Count: 89",
+        "Unrouted Nets: 20",
+        "",
+        "Critical Nets Status:",
+        "  ✓ VCC_3V3: Routed",
+        "  ✓ GND: Routed",
+        "  ⚠ USB_DP: Routed (SI issues)",
+        "  ⚠ USB_DN: Routed (SI issues)",
+        "",
+        "=== Recommendations ===",
+        "",
+        "1. Review 2 DRC warnings for potential issues",
+        "2. 2 nets have signal integrity issues - review trace widths",
+        "3. 13% of nets still unrouted - consider auto-router",
+        "",
+        "--- Completed: EDA PCB Design ---",
       ];
 
     default:
@@ -876,16 +834,6 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
             A -->|Query Results| F[User]
         `;
 
-      case "jira-confluence":
-        return `
-          graph LR
-            A[GitHub] -->|Sync| B[Issue Sync Service]
-            B -->|Create/Update| C[Jira]
-            B -->|Generate Docs| D[Confluence]
-            C -->|Issue Links| D
-            D -->|Documentation| E[Team Knowledge Base]
-        `;
-
       case "pagerduty":
         return `
           graph TD
@@ -904,16 +852,6 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
             B -->|Alerts| C[Notification Service]
             C -->|Slack/Email| D[Team]
             B -->|Historical Data| E[Analytics Dashboard]
-        `;
-
-      case "snyk":
-        return `
-          graph TD
-            A[Code Repository] -->|Scan| B[Snyk Scanner]
-            B -->|Vulnerabilities| C[Security Service]
-            C -->|Prioritize| D[Critical/High]
-            D -->|Remediation| E[PR Creation]
-            F[SBOM Report] --> C
         `;
 
       case "teams":
@@ -936,6 +874,21 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
             C -->|Generate| D[Code Output]
             D -->|Evaluate| E[Criteria Check]
             E -->|Report| F[Results]
+        `;
+
+      case "eda-pcb":
+        return `
+          graph TD
+            A[PCB Board] -->|Load| B[Design Service]
+            B -->|Analyze| C[Component Placement]
+            B -->|Check| D[DRC Engine]
+            B -->|Route| E[Auto Router]
+            B -->|Verify| F[Signal Integrity]
+            C -->|Suggestions| B
+            D -->|Violations| B
+            E -->|Traces| B
+            F -->|SI Results| B
+            B -->|Export| G[Gerber/BOM]
         `;
 
       default:
@@ -1343,7 +1296,7 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
           onClick={onClose}
         >
           <motion.div
-            className={`modal-panel ${demo.id === "rlm-orchestration" || demo.id === "skill-testing" ? "modal-panel-wide" : ""}`}
+            className={`modal-panel ${demo.id === "rlm-orchestration" || demo.id === "skill-testing" || demo.id === "eda-pcb" ? "modal-panel-wide" : ""}`}
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -2210,6 +2163,16 @@ const DemoDetailModal: React.FC<DemoDetailModalProps> = ({
 
                   <div style={{ marginTop: "var(--space-4)" }}>
                     <SkillTestingViewer execution={skillTestingMockData} />
+                  </div>
+                </div>
+              ) : demo.id === "eda-pcb" ? (
+                <div className="modal-section">
+                  <h3 className="modal-section-title">
+                    <Cpu size={18} />
+                    PCB Design Analysis
+                  </h3>
+                  <div style={{ marginTop: "var(--space-4)" }}>
+                    <PCBViewer analysis={edaPcbMockData} />
                   </div>
                 </div>
               ) : (

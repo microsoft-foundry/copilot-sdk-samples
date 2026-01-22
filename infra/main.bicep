@@ -29,16 +29,6 @@ param githubOwner string = ''
 @description('Target GitHub repo for samples')
 param githubRepo string = ''
 
-@description('Atlassian email for Jira/Confluence')
-param atlassianEmail string = ''
-
-@description('Atlassian API token')
-@secure()
-param atlassianApiToken string = ''
-
-@description('Atlassian domain (e.g., yourcompany.atlassian.net)')
-param atlassianDomain string = ''
-
 @description('PagerDuty API key')
 @secure()
 param pagerdutyApiKey string = ''
@@ -53,13 +43,6 @@ param datadogAppKey string = ''
 
 @description('Datadog site (e.g., datadoghq.com)')
 param datadogSite string = 'datadoghq.com'
-
-@description('Snyk API token')
-@secure()
-param snykApiToken string = ''
-
-@description('Snyk organization ID')
-param snykOrgId string = ''
 
 @description('Slack bot token')
 @secure()
@@ -119,11 +102,9 @@ module containerRegistry './modules/container-registry.bicep' = {
 var apiSecrets = [
   { name: 'copilot-github-token', value: !empty(copilotGithubToken) ? copilotGithubToken : 'not-set' }
   { name: 'github-token', value: !empty(githubToken) ? githubToken : 'not-set' }
-  { name: 'atlassian-api-token', value: !empty(atlassianApiToken) ? atlassianApiToken : 'not-set' }
   { name: 'pagerduty-api-key', value: !empty(pagerdutyApiKey) ? pagerdutyApiKey : 'not-set' }
   { name: 'datadog-api-key', value: !empty(datadogApiKey) ? datadogApiKey : 'not-set' }
   { name: 'datadog-app-key', value: !empty(datadogAppKey) ? datadogAppKey : 'not-set' }
-  { name: 'snyk-api-token', value: !empty(snykApiToken) ? snykApiToken : 'not-set' }
   { name: 'slack-bot-token', value: !empty(slackBotToken) ? slackBotToken : 'not-set' }
   { name: 'slack-signing-secret', value: !empty(slackSigningSecret) ? slackSigningSecret : 'not-set' }
 ]
@@ -136,15 +117,10 @@ var apiEnvVars = [
   { name: 'GITHUB_TOKEN', secretRef: 'github-token' }
   { name: 'GITHUB_OWNER', value: githubOwner }
   { name: 'GITHUB_REPO', value: githubRepo }
-  { name: 'ATLASSIAN_EMAIL', value: atlassianEmail }
-  { name: 'ATLASSIAN_API_TOKEN', secretRef: 'atlassian-api-token' }
-  { name: 'ATLASSIAN_DOMAIN', value: atlassianDomain }
   { name: 'PAGERDUTY_API_KEY', secretRef: 'pagerduty-api-key' }
   { name: 'DATADOG_API_KEY', secretRef: 'datadog-api-key' }
   { name: 'DATADOG_APP_KEY', secretRef: 'datadog-app-key' }
   { name: 'DATADOG_SITE', value: datadogSite }
-  { name: 'SNYK_API_TOKEN', secretRef: 'snyk-api-token' }
-  { name: 'SNYK_ORG_ID', value: snykOrgId }
   { name: 'SLACK_BOT_TOKEN', secretRef: 'slack-bot-token' }
   { name: 'SLACK_SIGNING_SECRET', secretRef: 'slack-signing-secret' }
 ]

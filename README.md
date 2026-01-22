@@ -26,17 +26,18 @@ pnpm hello-world # Run a sample directly
 
 ## Samples
 
-| Sample              | Description                | Connectors       |
-| ------------------- | -------------------------- | ---------------- |
-| `hello-world`       | Basic SDK setup            | —                |
-| `issue-triage`      | Auto-label GitHub issues   | GitHub           |
-| `security-alerts`   | Prioritize vulnerabilities | GitHub           |
-| `mcp-orchestration` | Query dev infrastructure   | —                |
-| `jira-confluence`   | Atlassian integration      | Jira, Confluence |
-| `pagerduty`         | Incident management        | PagerDuty        |
-| `datadog`           | Monitoring & observability | Datadog          |
-| `snyk`              | Security scanning          | Snyk             |
-| `teams`             | MS Teams collaboration     | Teams            |
+| Sample              | Description                | Connectors |
+| ------------------- | -------------------------- | ---------- |
+| `hello-world`       | Basic SDK setup            | —          |
+| `issue-triage`      | Auto-label GitHub issues   | GitHub     |
+| `security-alerts`   | Prioritize vulnerabilities | GitHub     |
+| `mcp-orchestration` | Query dev infrastructure   | —          |
+| `skill-testing`     | Test agent skills          | MS Learn   |
+| `rlm-orchestration` | Recursive LLM pattern      | —          |
+| `eda-pcb`           | PCB design analysis        | EDA        |
+| `pagerduty`         | Incident management        | PagerDuty  |
+| `datadog`           | Monitoring & observability | Datadog    |
+| `teams`             | MS Teams collaboration     | Teams      |
 
 Run any sample: `pnpm <sample-name>` (e.g., `pnpm issue-triage`)
 
@@ -44,15 +45,14 @@ Run any sample: `pnpm <sample-name>` (e.g., `pnpm issue-triage`)
 
 All connectors support **mock mode** (default) — no credentials needed for development.
 
-| Connector  | Status |
-| ---------- | ------ |
-| GitHub     | ✅     |
-| Jira       | ✅     |
-| Confluence | ✅     |
-| PagerDuty  | ✅     |
-| Datadog    | ✅     |
-| Snyk       | ✅     |
-| Teams      | ✅     |
+| Connector | Status |
+| --------- | ------ |
+| GitHub    | ✅     |
+| PagerDuty | ✅     |
+| Datadog   | ✅     |
+| Teams     | ✅     |
+| EDA       | ✅     |
+| MS Learn  | ✅     |
 
 ## Development
 

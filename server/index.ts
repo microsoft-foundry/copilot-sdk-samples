@@ -51,18 +51,6 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
     command: "npx tsx samples/mcp-orchestration/sdk/index.ts",
     envVars: { GITHUB_TOKEN: "required" },
   },
-  "jira-confluence": {
-    id: "jira-confluence",
-    name: "Jira + Confluence",
-    description: "Atlassian integration for issue sync and documentation",
-    command: "npx tsx samples/jira-confluence/sdk/index.ts",
-    envVars: {
-      GITHUB_TOKEN: "required",
-      JIRA_HOST: "optional",
-      JIRA_EMAIL: "optional",
-      JIRA_API_TOKEN: "optional",
-    },
-  },
   pagerduty: {
     id: "pagerduty",
     name: "PagerDuty",
@@ -81,13 +69,6 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
       DATADOG_APP_KEY: "optional",
     },
   },
-  snyk: {
-    id: "snyk",
-    name: "Snyk",
-    description: "Security scanning and vulnerability detection",
-    command: "npx tsx samples/snyk/sdk/index.ts",
-    envVars: { GITHUB_TOKEN: "required", SNYK_TOKEN: "optional" },
-  },
   teams: {
     id: "teams",
     name: "Microsoft Teams",
@@ -105,6 +86,14 @@ const DEMO_CONFIGS: Record<string, DemoConfig> = {
     name: "Skill Testing",
     description: "Test AI skills against acceptance criteria",
     command: "npx tsx samples/skill-testing/sdk/index.ts",
+    envVars: { GITHUB_TOKEN: "required" },
+  },
+  "eda-pcb": {
+    id: "eda-pcb",
+    name: "EDA PCB Design",
+    description:
+      "AI-powered PCB design assistant with DRC, auto-routing, and signal integrity",
+    command: "npx tsx samples/eda-pcb/sdk/index.ts",
     envVars: { GITHUB_TOKEN: "required" },
   },
 };

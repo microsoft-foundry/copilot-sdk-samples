@@ -16,10 +16,8 @@ const getValueProp = (demo: Demo): string => {
     "issue-triage": "70% faster issue classification",
     "security-alerts": "50% faster vulnerability remediation",
     "mcp-orchestration": "10x faster infrastructure queries",
-    "jira-confluence": "Zero manual sync between platforms",
     pagerduty: "40% reduction in MTTR",
     datadog: "5x faster log analysis",
-    snyk: "90% of vulns auto-prioritized",
     teams: "3x faster team response time",
   };
 
