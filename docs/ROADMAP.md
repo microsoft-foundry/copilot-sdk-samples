@@ -9,10 +9,8 @@
 
 ## ISV Tier 1 (Easy Setup - Free Dev Accounts)
 
-- [ ] Jira + Confluence (Atlassian free dev)
 - [ ] PagerDuty (trial + API key)
 - [ ] Datadog (trial + API key)
-- [ ] Snyk (free org + API token)
 - [ ] Slack (free workspace + bot token)
 
 ## ISV Tier 2 (Heavier Setup)

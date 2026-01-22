@@ -48,14 +48,12 @@ Run any sample with `pnpm <sample-name>`:
 | `pnpm issue-triage`      | Auto-label GitHub issues   |
 | `pnpm security-alerts`   | Prioritize vulnerabilities |
 | `pnpm mcp-orchestration` | Query dev infrastructure   |
-| `pnpm jira-confluence`   | Atlassian integration      |
+| `pnpm skill-testing`     | Test agent skills          |
+| `pnpm rlm-orchestration` | Recursive LLM pattern      |
+| `pnpm eda-pcb`           | PCB design analysis        |
 | `pnpm pagerduty`         | Incident management        |
 | `pnpm datadog`           | Monitoring & observability |
-| `pnpm snyk`              | Security scanning          |
-| `pnpm slack`             | Slack integration          |
 | `pnpm teams`             | MS Teams collaboration     |
-| `pnpm skill-testing`     | Skill testing sample       |
-| `pnpm rlm-orchestration` | RLM orchestration sample   |
 
 ## Key Conventions
 

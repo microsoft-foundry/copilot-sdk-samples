@@ -124,9 +124,9 @@
       "timeToValue": "4 hours"
     },
     {
-      "id": "jira-confluence",
-      "name": "Jira + Confluence",
-      "description": "Bridge GitHub and Atlassian workflows seamlessly. Automatically sync issues between platforms, generate Confluence documentation from code changes, and maintain bidirectional traceability. Ideal for enterprises running hybrid toolchains who need unified visibility across systems.",
+      "id": "eda-pcb",
+      "name": "EDA PCB Design",
+      "description": "AI-powered PCB design assistant with DRC, auto-routing, and signal integrity analysis. Demonstrates how EDA companies can integrate AI capabilities for component placement analysis, design rule checking, differential pair routing, and manufacturing file export.",
       "tier": "isv-tier-1",
       "status": "implemented",
       "type": "sdk",
@@ -135,12 +135,12 @@
         "ghaw": false
       },
       "paths": {
-        "sdk": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/tree/main/samples/jira-confluence/sdk"
+        "sdk": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/tree/main/samples/eda-pcb/sdk"
       },
       "dependencies": [],
-      "connectors": ["jira", "confluence"],
-      "audience": "Enterprise Teams, Project Managers",
-      "timeToValue": "3 hours"
+      "connectors": ["eda"],
+      "audience": "Hardware Engineers, PCB Designers",
+      "timeToValue": "2 hours"
     },
     {
       "id": "pagerduty",
@@ -181,25 +181,6 @@
       "timeToValue": "2 hours"
     },
     {
-      "id": "snyk",
-      "name": "Snyk",
-      "description": "Shift security left with intelligent vulnerability management. Scan dependencies, prioritize fixes by business impact, and generate remediation PRs automatically. Essential for teams building secure software at scale while maintaining development velocity.",
-      "tier": "isv-tier-1",
-      "status": "implemented",
-      "type": "sdk",
-      "features": {
-        "sdk": true,
-        "ghaw": false
-      },
-      "paths": {
-        "sdk": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/tree/main/samples/snyk/sdk"
-      },
-      "dependencies": [],
-      "connectors": ["snyk"],
-      "audience": "Security Teams, AppSec Engineers",
-      "timeToValue": "2 hours"
-    },
-    {
       "id": "teams",
       "name": "Microsoft Teams",
       "description": "Bring AI-powered workflows directly into Microsoft Teams. Send intelligent notifications, enable conversational queries, and automate approvals where your team already collaborates. The flagship integration demonstrating Copilot SDK's enterprise communication capabilities.",
@@ -232,26 +213,6 @@
       }
     },
     {
-      "id": "jira",
-      "name": "Jira",
-      "description": "Atlassian Jira issue tracker",
-      "status": "implemented",
-      "paths": {
-        "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/jira/client.ts",
-        "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/jira/client.ts"
-      }
-    },
-    {
-      "id": "confluence",
-      "name": "Confluence",
-      "description": "Atlassian Confluence wiki",
-      "status": "implemented",
-      "paths": {
-        "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/confluence/client.ts",
-        "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/confluence/client.ts"
-      }
-    },
-    {
       "id": "pagerduty",
       "name": "PagerDuty",
       "description": "Incident management platform",
@@ -269,16 +230,6 @@
       "paths": {
         "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/datadog/client.ts",
         "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/datadog/client.ts"
-      }
-    },
-    {
-      "id": "snyk",
-      "name": "Snyk",
-      "description": "Developer security platform",
-      "status": "implemented",
-      "paths": {
-        "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/snyk/client.ts",
-        "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/snyk/client.ts"
       }
     },
     {
@@ -319,6 +270,16 @@
       "paths": {
         "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/github-actions/client.ts",
         "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/github-actions/client.ts"
+      }
+    },
+    {
+      "id": "eda",
+      "name": "EDA/PCB Design",
+      "description": "Electronic Design Automation connector for PCB design, DRC, auto-routing, and signal integrity analysis",
+      "status": "implemented",
+      "paths": {
+        "client": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/eda/client.ts",
+        "mock": "https://github.com/microsoft-foundry/copilot-sdk-ghaw-samples/blob/main/shared/connectors/eda/client.ts"
       }
     }
   ],
